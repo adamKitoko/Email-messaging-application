@@ -10,6 +10,7 @@ import hashlib
 import hmac
 import json
 import os
+import pathlib
 import select
 import socket
 import sys
@@ -34,9 +35,35 @@ class Server:
         S'assure que les dossiers de données du serveur existent.
         """
         # self._server_socket
+        try:
+            self._serveur_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self._serveur_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self._serveur_socket.bind(("127.0.0.1", gloutils.APP_PORT))
+            self._serveur_socket.listen()
+        except OSError:
+            print("Erreur lors de la création du socket_serveur")
+            sys.exit(-1)
         # self._client_socs
+        self._client_socs: list
+
         # self._logged_users
+        self._logged_users: dict
         # ...
+        server_data = pathlib.Path(gloutils.SERVER_DATA_DIR)
+        lost_data = pathlib.Path(gloutils.SERVER_DATA_DIR + "/"
+                                 + gloutils.SERVER_LOST_DIR)
+        try:
+            server_data.mkdir()
+            lost_data.mkdir()
+        except FileExistsError:
+            pass
+
+        # if not server_data.exist():
+
+        if "SERVEUR_DATA_DIR" not in os.listdir():
+            os.mkdir("SERVEUR_DATA_DIR")
+        if "SERVER_LOST_DIR" not in os.listdir("./SERVER_DATA_DIR"):
+            os.mkdir("./SERVER_LOST_DIR")
 
     def cleanup(self) -> None:
         """Ferme toutes les connexions résiduelles."""
@@ -46,9 +73,17 @@ class Server:
 
     def _accept_client(self) -> None:
         """Accepte un nouveau client."""
+        client_socket, _ = self._serveur_socket.accept()
+        self._client_socs.append(client_socket)
+
 
     def _remove_client(self, client_soc: socket.socket) -> None:
         """Retire le client des structures de données et ferme sa connexion."""
+        if client_soc in self._client_socs:
+            self._client_socs.remove(client_soc)
+        if client_soc in self._logged_users:
+            self._logged_users.pop(client_soc)
+        client_soc.close()
 
     def _create_account(self, client_soc: socket.socket,
                         payload: gloutils.AuthPayload
@@ -74,6 +109,8 @@ class Server:
 
     def _logout(self, client_soc: socket.socket) -> None:
         """Déconnecte un utilisateur."""
+        self._remove_client(client_soc)
+        """..."""
 
     def _get_email_list(self, client_soc: socket.socket
                         ) -> gloutils.GloMessage:
@@ -121,6 +158,8 @@ class Server:
         waiters = []
         while True:
             # Select readable sockets
+            result = select.select([self._serveur_socket]+self._client_socs, [], [])
+            waiters: list[socket.socket] = result[0]
             for waiter in waiters:
                 # Handle sockets
                 pass
