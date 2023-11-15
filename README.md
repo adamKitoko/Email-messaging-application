@@ -8,7 +8,7 @@ Les deux fichiers à compléter sont:
 ## TP4.serveur.py
 
 #### `class Server`
-- [ ] __init__()
+- [ ] `__init__()`
 - [ ] cleanup()
 - [ ] _accept_client()
 - [ ] _remove_client()
@@ -24,7 +24,7 @@ Les deux fichiers à compléter sont:
 ## TP4.client.py
 
 #### `class Client`
-- [ ] __init__()
+- [ ] `__init__()`
 - [ ] _register()
 - [ ] _login()
 - [ ] _quit()
