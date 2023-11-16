@@ -75,9 +75,6 @@ class Server:
         """Accepte un nouveau client."""
         client_socket, _ = self._serveur_socket.accept()
         self._client_socs.append(client_socket)
-        try:
-            glosocket.send_mesg(gloutils.Headers.AUTH_LOGIN)
-
 
     def _remove_client(self, client_soc: socket.socket) -> None:
         """Retire le client des structures de données et ferme sa connexion."""
@@ -168,12 +165,22 @@ class Server:
                     self._accept_client()
                 else:
                     try:
-                        message = glosocket.recv_mesg(waiter)
+                        message = json.loads(glosocket.recv_mesg(waiter))
                     except glosocket.GLOSocketError:
                         self._remove_client(waiter)
                         continue
+                    # if headers et payload present.
+                    #
+                    match message['header']:
+                        case gloutils.Headers.AUTH_REGISTER:
+                            self._create_account(waiter, message['payload'])
+                        case gloutils.Headers.AUTH_LOGIN:
+                            self._login(waiter, message['payload'])
+                        case gloutils.Headers.AUTH_LOGOUT:
+                            self._logout(waiter)
+                        
                 match json.loads(message):
-                    case {"headers": gloutils.Headers.BYE}:
+                    case {"header": gloutils.Headers.BYE}:
                         self._remove_client(waiter)
 
                 pass
