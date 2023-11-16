@@ -60,10 +60,10 @@ class Server:
 
         # if not server_data.exist():
 
-        if "SERVEUR_DATA_DIR" not in os.listdir():
-            os.mkdir("SERVEUR_DATA_DIR")
-        if "SERVER_LOST_DIR" not in os.listdir("./SERVER_DATA_DIR"):
-            os.mkdir("./SERVER_LOST_DIR")
+        # if "SERVEUR_DATA_DIR" not in os.listdir():
+        #     os.mkdir("SERVEUR_DATA_DIR")
+        # if "SERVER_LOST_DIR" not in os.listdir("./SERVER_DATA_DIR"):
+        #     os.mkdir("./SERVER_LOST_DIR")
 
     def cleanup(self) -> None:
         """Ferme toutes les connexions résiduelles."""
@@ -75,6 +75,8 @@ class Server:
         """Accepte un nouveau client."""
         client_socket, _ = self._serveur_socket.accept()
         self._client_socs.append(client_socket)
+        try:
+            glosocket.send_mesg(gloutils.Headers.AUTH_LOGIN)
 
 
     def _remove_client(self, client_soc: socket.socket) -> None:
@@ -162,6 +164,18 @@ class Server:
             waiters: list[socket.socket] = result[0]
             for waiter in waiters:
                 # Handle sockets
+                if waiter == self._serveur_socket:
+                    self._accept_client()
+                else:
+                    try:
+                        message = glosocket.recv_mesg(waiter)
+                    except glosocket.GLOSocketError:
+                        self._remove_client(waiter)
+                        continue
+                match json.loads(message):
+                    case {"headers": gloutils.Headers.BYE}:
+                        self._remove_client(waiter)
+
                 pass
 
 
