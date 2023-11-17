@@ -68,22 +68,22 @@ class Client:
         """
 
         print("Connexion à un compte existant:")
-        nomDUtilisateur = input("Nom d'utilisateur : ")
-        motDePasse = getpass.getpass("Mot de passe : ")
+        nomDUtilisateur = input("Entrez un nom d'utilisateur:")
+        motDePasse = getpass.getpass("Entrez un mot de passe:")
 
         # Envoyer l'entête AUTH_LOGIN au serveur avec les informations de connexion
         self._socket.sendall(glosocket.encode_message(glosocket.AUTH_LOGIN))
         self._socket.sendall(glosocket.encode_message(nomDUtilisateur))
         self._socket.sendall(glosocket.encode_message(motDePasse))
 
-        # Recevoir la réponse du serveur
-        response = glosocket.receive_message(self._socket)
 
-        if response == glosocket.OK:
-            print("Connexion réussie.")
-            self._username = nomDUtilisateur
-        else:
-            print("Erreur lors de la connexion. Veuillez réessayer.")
+        # Recevoir la réponse du serveur
+        reponse = glosocket.recv_mesg(self._socket)
+        match json.loads(reponse):
+            case {"header": gloutils.Headers.OK}:
+                self._username = nomDUtilisateur
+            case {"header": gloutils.Headers.ERROR}:
+                print(reponse['payload']['error_message'])
 
     def _quit(self) -> None:
         """
