@@ -26,9 +26,13 @@ class Client:
         Prépare un attribut `_username` pour stocker le nom d'utilisateur
         courant. Laissé vide quand l'utilisateur n'est pas connecté.
         """
+        # Préparation du socket
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._socket.connect(destination)
+
+        #Préparation des membres
         self._destination = destination
-        self._username = ""
+        self._username = None
 
     def _register(self) -> None:
         """
@@ -42,6 +46,7 @@ class Client:
         motDePasse = getpass.getpass("Entrez un mot de passe:")
         regPayload = gloutils.AuthPayload(username=userNom,
                              password=motDePasse)
+        messageAuth = gloutils.GloMessage(header=)
         glosocket.send_mesg(self._socket, 
                             json.dump(gloutils.GloMessage(header=gloutils.Headers.AUTH_REGISTER, payload=regPayload)))
 
@@ -90,7 +95,6 @@ class Client:
 
         # Fermer le socket du client
         self._socket.close()
-        should_quit = True
 
     def _read_email(self) -> None:
         """
@@ -131,6 +135,9 @@ class Client:
 
         Met à jour l'attribut `_username`.
         """
+        glosocket.send_mesg(gloutils.GloMessage(header=gloutils.Headers.AUTH_LOGOUT))
+        self._socket.close()
+        self._username = None
 
     def run(self) -> None:
         """Point d'entrée du client."""
@@ -139,18 +146,18 @@ class Client:
         while not should_quit:
             if not self._username:
                 # Authentication menu
-                print("Menu de connexion")
-                print("1. Créer un compte")
-                print("2. Se connecter")
-                print("3. Quitter")
-                choice = input("Entrez votre choix [1-3]: ")
+                print(gloutils.CLIENT_AUTH_CHOICE)
+                choice = input("Entrez votre choix [1-3]:")
+                match choice:
+                    case "1":
+                        self._register()
+                    case "2":
+                        self._login()
+                    case "3":
+                        self._quit()
+                        should_quit = True
+                    case other:
 
-                if choice == "1":
-                    self._register()
-                elif choice == "2":
-                    self._login()
-                elif choice == "3":
-                    should_quit = True
                 else:
                     print("Choix invalide. Veuillez réessayer.")
             else:
