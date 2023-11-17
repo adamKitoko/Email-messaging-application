@@ -88,6 +88,11 @@ class Client:
         Préviens le serveur de la déconnexion avec l'entête `BYE` et ferme le
         socket du client.
         """
+        # Envoyer l'entête BYE au serveur
+        self._socket.sendall(glosocket.encode_message(glosocket.BYE))
+
+        # Fermer le socket du client
+        self._socket.close()
 
     def _read_email(self) -> None:
         """
