@@ -46,10 +46,10 @@ class Client:
         motDePasse = getpass.getpass("Entrez un mot de passe:")
         regPayload = gloutils.AuthPayload(username=userNom,
                              password=motDePasse)
-        messageAuth = gloutils.GloMessage(header=)
-        glosocket.send_mesg(self._socket, 
-                            json.dump(gloutils.GloMessage(header=gloutils.Headers.AUTH_REGISTER, payload=regPayload)))
-
+        messageAuth = gloutils.GloMessage(header=gloutils.Headers.AUTH_REGISTER,
+                                          payload= gloutils.AuthPayload(username=userNom, password=motDePasse))
+        glosocket.send_mesg(self._socket, json.dump(messageAuth))
+        
         # Recevoir la réponse du serveur
         response = glosocket.recv_mesg(self._socket)
         match json.loads(response):
