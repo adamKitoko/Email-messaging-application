@@ -93,6 +93,7 @@ class Client:
 
         # Fermer le socket du client
         self._socket.close()
+        should_quit = True
 
     def _read_email(self) -> None:
         """
@@ -141,10 +142,39 @@ class Client:
         while not should_quit:
             if not self._username:
                 # Authentication menu
-                pass
+                print("Menu de connexion")
+                print("1. Créer un compte")
+                print("2. Se connecter")
+                print("3. Quitter")
+                choice = input("Entrez votre choix [1-3]: ")
+
+                if choice == "1":
+                    self._register()
+                elif choice == "2":
+                    self._login()
+                elif choice == "3":
+                    should_quit = True
+                else:
+                    print("Choix invalide. Veuillez réessayer.")
             else:
                 # Main menu
-                pass
+                print("Menu principal")
+                print("1. Consultation de courriels")
+                print("2. Envoi de courriels")
+                print("3. Statistiques")
+                print("4. Se déconnecter")
+                choice = input("Entrez votre choix [1-4]: ")
+
+                if choice == "1":
+                    self._read_email()
+                elif choice == "2":
+                    self._send_email()
+                elif choice == "3":
+                    self._check_stats()
+                elif choice == "4":
+                    self._logout()
+                else:
+                    print("Choix invalide. Veuillez réessayer.")
 
 
 def _main() -> int:
