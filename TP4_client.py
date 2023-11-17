@@ -27,11 +27,13 @@ class Client:
         courant. Laissé vide quand l'utilisateur n'est pas connecté.
         """
         # Préparation du socket
-        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._socket.connect(destination)
-
+        try:
+            self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self._socket.connect(destination)
+        except glosocket.GLOSocketError:
+            sys.exit(-1)
+        
         #Préparation des membres
-        self._destination = destination
         self._username = None
 
     def _register(self) -> None:
@@ -44,12 +46,10 @@ class Client:
         """
         userNom = input("Entrez un nom d'utilisateur:")
         motDePasse = getpass.getpass("Entrez un mot de passe:")
-        regPayload = gloutils.AuthPayload(username=userNom,
-                             password=motDePasse)
         messageAuth = gloutils.GloMessage(header=gloutils.Headers.AUTH_REGISTER,
                                           payload= gloutils.AuthPayload(username=userNom, password=motDePasse))
         glosocket.send_mesg(self._socket, json.dump(messageAuth))
-        
+
         # Recevoir la réponse du serveur
         response = glosocket.recv_mesg(self._socket)
         match json.loads(response):
@@ -147,8 +147,8 @@ class Client:
             if not self._username:
                 # Authentication menu
                 print(gloutils.CLIENT_AUTH_CHOICE)
-                choice = input("Entrez votre choix [1-3]:")
-                match choice:
+                choix = input("Entrez votre choix [1-3]:")
+                match choix:
                     case "1":
                         self._register()
                     case "2":
@@ -156,10 +156,8 @@ class Client:
                     case "3":
                         self._quit()
                         should_quit = True
-                    case other:
-
-                else:
-                    print("Choix invalide. Veuillez réessayer.")
+                    case other: 
+                        pass
             else:
                 # Main menu
                 print("Menu principal")

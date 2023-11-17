@@ -14,6 +14,7 @@ import pathlib
 import select
 import socket
 import sys
+import re
 
 import glosocket
 import gloutils
@@ -58,13 +59,6 @@ class Server:
         except FileExistsError:
             pass
 
-        # if not server_data.exist():
-
-        # if "SERVEUR_DATA_DIR" not in os.listdir():
-        #     os.mkdir("SERVEUR_DATA_DIR")
-        # if "SERVER_LOST_DIR" not in os.listdir("./SERVER_DATA_DIR"):
-        #     os.mkdir("./SERVER_LOST_DIR")
-
     def cleanup(self) -> None:
         """Ferme toutes les connexions résiduelles."""
         for client_soc in self._client_socs:
@@ -94,7 +88,31 @@ class Server:
         associe le socket au nouvel l'utilisateur et retourne un succès,
         sinon retourne un message d'erreur.
         """
-        return gloutils.GloMessage()
+        errMessage = """La création à échouée:
+        - Le nom d'utilisateur est invalide.
+        - Le mot de passe n'est pas assez sûr."""
+        if ((re.search(r"[a-zA-Z0-9_.-]+", payload['username']) is not None) 
+            and (re.search(r"^(?=.*[A-Z])(?=.*\d).{10,}$", payload['password']) is not None)):
+        
+            reponse = gloutils.GloMessage(header=gloutils.Headers.OK)
+
+            # Création du dossier d'utilisateur
+            userDossier = pathlib.Path(gloutils.SERVER_DATA_DIR)/payload['username']
+            try:
+                userDossier.mkdir()
+            except FileExistsError:
+                errPayload = gloutils.ErrorPayload(error_message=errMessage)
+                return gloutils.GloMessage(header=gloutils.Headers.ERROR,payload=errPayload)
+            # Hachage
+            hasherPass = hashlib.sha3_512()
+            hasherPass.update(payload['password'].encode('utf-8'))
+            (pathlib.Path(gloutils.SERVER_DATA_DIR)/payload['username']/gloutils.PASSWORD_FILENAME).write_text(hasherPass.hexdigest())
+            reponse = gloutils.GloMessage(header=gloutils.Headers.OK)
+        else:
+            reponsePayLoad = gloutils.ErrorPayload(error_message=errMessage)
+            reponse = gloutils.GloMessage(header=gloutils.Headers.ERROR,
+                                      payload=reponsePayLoad)
+        return reponse
 
     def _login(self, client_soc: socket.socket, payload: gloutils.AuthPayload
                ) -> gloutils.GloMessage:
@@ -171,12 +189,12 @@ class Server:
                         continue
                     # if headers et payload present.
                     #
-                    match message['header']:
-                        case gloutils.Headers.AUTH_REGISTER:
+                    match message:
+                        case {"header": gloutils.Headers.AUTH_REGISTER}:
                             self._create_account(waiter, message['payload'])
-                        case gloutils.Headers.AUTH_LOGIN:
+                        case {"header": gloutils.Headers.AUTH_LOGIN}:
                             self._login(waiter, message['payload'])
-                        case gloutils.Headers.AUTH_LOGOUT:
+                        case {"header": gloutils.Headers.AUTH_LOGOUT}:
                             self._logout(waiter)
                         
                 match json.loads(message):
