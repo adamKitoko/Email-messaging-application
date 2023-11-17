@@ -38,24 +38,21 @@ class Client:
         Si la création du compte s'est effectuée avec succès, l'attribut
         `_username` est mis à jour, sinon l'erreur est affichée.
         """
-        print("Création d'un compte utilisateur:")
-        nomDUtilisateur = input("Nom d'utilisateur : ")
-        motDePasse = getpass.getpass("Mot de passe : ")
-        
-        # Envoyer l'entête AUTH_REGISTER au serveur avec les informations d'inscription
-        self._socket.sendall(glosocket.encode_message(glosocket.AUTH_REGISTER))
-        self._socket.sendall(glosocket.encode_message(nomDUtilisateur))
-        self._socket.sendall(glosocket.encode_message(motDePasse))
+        userNom = input("Entrez un nom d'utilisateur:")
+        motDePasse = getpass.getpass("Entrez un mot de passe:")
+        regPayload = gloutils.AuthPayload(username=userNom,
+                             password=motDePasse)
+        glosocket.send_mesg(self._socket, 
+                            json.dump(gloutils.GloMessage(header=gloutils.Headers.AUTH_REGISTER, payload=regPayload)))
 
         # Recevoir la réponse du serveur
-        response = glosocket.receive_message(self._socket)
+        response = glosocket.recv_mesg(self._socket)
+        match json.loads(response):
+            case {"header": gloutils.Headers.OK}:
+                self._username = userNom
+            case {"header": gloutils.Headers.ERROR}:
+                print(response['payload']['error_message'])
 
-        if response == glosocket.OK:
-            print("Compte créé avec succès.")
-            self._username = nomDUtilisateur
-        else:
-            print("Erreur lors de la création du compte. Veuillez réessayer.")
-    
     def _login(self) -> None:
         """
         Demande un nom d'utilisateur et un mot de passe et les transmet au
