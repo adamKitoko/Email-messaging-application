@@ -50,12 +50,12 @@ class Server:
         # self._logged_users
         self._logged_users: dict
         # ...
-        server_data = pathlib.Path(gloutils.SERVER_DATA_DIR)
-        lost_data = pathlib.Path(gloutils.SERVER_DATA_DIR + "/"
-                                 + gloutils.SERVER_LOST_DIR)
         try:
-            server_data.mkdir()
-            lost_data.mkdir()
+            pathlib.Path(gloutils.SERVER_DATA_DIR).mkdir()
+        except FileExistsError:
+            pass
+        try:
+            (pathlib.Path(gloutils.SERVER_DATA_DIR)/gloutils.SERVER_LOST_DIR).mkdir()
         except FileExistsError:
             pass
 
