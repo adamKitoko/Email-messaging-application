@@ -65,6 +65,24 @@ class Client:
         est mis à jour, sinon l'erreur est affichée.
         """
 
+        print("Connexion à un compte existant:")
+        nomDUtilisateur = input("Nom d'utilisateur : ")
+        motDePasse = getpass.getpass("Mot de passe : ")
+
+        # Envoyer l'entête AUTH_LOGIN au serveur avec les informations de connexion
+        self._socket.sendall(glosocket.encode_message(glosocket.AUTH_LOGIN))
+        self._socket.sendall(glosocket.encode_message(nomDUtilisateur))
+        self._socket.sendall(glosocket.encode_message(motDePasse))
+
+        # Recevoir la réponse du serveur
+        response = glosocket.receive_message(self._socket)
+
+        if response == glosocket.OK:
+            print("Connexion réussie.")
+            self._username = nomDUtilisateur
+        else:
+            print("Erreur lors de la connexion. Veuillez réessayer.")
+
     def _quit(self) -> None:
         """
         Préviens le serveur de la déconnexion avec l'entête `BYE` et ferme le
