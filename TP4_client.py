@@ -51,12 +51,13 @@ class Client:
         glosocket.send_mesg(self._socket, json.dumps(messageAuth))
 
         # Recevoir la réponse du serveur
-        response = glosocket.recv_mesg(self._socket)
-        match json.loads(response):
+        reponse = glosocket.recv_mesg(self._socket)
+        match json.loads(reponse):
             case {"header": gloutils.Headers.OK}:
                 self._username = userNom
             case {"header": gloutils.Headers.ERROR}:
-                print(response['payload']['error_message'])
+                errPayload = reponse['payload']
+                print(errPayload['error_message'])
 
     def _login(self) -> None:
         """
@@ -91,7 +92,10 @@ class Client:
         socket du client.
         """
         # Envoyer l'entête BYE au serveur
-        self._socket.sendall(glosocket.encode_message(glosocket.BYE))
+        glosocket.send_mesg(self._socket, json.dumps(gloutils.GloMessage(
+            header=gloutils.Headers.BYE,
+            payload=None
+        )))
 
         # Fermer le socket du client
         self._socket.close()
@@ -173,13 +177,13 @@ class Client:
         glosocket.send_mesg(self._socket, json.dumps(demandeStats))
         
         #Réception des statistiques et affichage.
-        stats = json.loads(glosocket.recv_mesg(self._socket))
-        match stats:
+        stats = glosocket.recv_mesg(self._socket)
+        match json.loads(stats):
             case {"header": gloutils.Headers.OK}:
-                if stats['payload'] == gloutils.StatsPayload:
+                if 'payload' in stats:
                     affichageStats = gloutils.STATS_DISPLAY.format(
-                        count=stats['payload']['count'],
-                        size=stats['payload']['size'])
+                        count=stats["payload"]["count"],
+                        size=stats["payload"]["size"])
                     print(affichageStats)
                 else:
                     print("Erreur lors l'accès aux statistiques.")
@@ -208,32 +212,32 @@ class Client:
                 match choix:
                     case "1":
                         self._register()
+                        continue
                     case "2":
                         self._login()
+                        continue
                     case "3":
-                        self._quit()
                         should_quit = True
-                    case other: 
+                        self._quit()
+                    case _: 
                         pass
             else:
                 # Main menu
-                print("Menu principal")
-                print("1. Consultation de courriels")
-                print("2. Envoi de courriels")
-                print("3. Statistiques")
-                print("4. Se déconnecter")
-                choice = input("Entrez votre choix [1-4]: ")
-
-                if choice == "1":
-                    self._read_email()
-                elif choice == "2":
-                    self._send_email()
-                elif choice == "3":
-                    self._check_stats()
-                elif choice == "4":
-                    self._logout()
-                else:
-                    print("Choix invalide. Veuillez réessayer.")
+                print(gloutils.CLIENT_USE_CHOICE)
+                choixMenuEmail = input("Entrez votre choix [1-4]: ")
+                match choixMenuEmail:
+                    case "1":
+                        self._read_email()
+                    case "2":
+                        self._send_email()
+                    case "3":
+                        self._check_stats()
+                    case "4":
+                        should_quit = True
+                        self._quit
+                    case _:
+                        print("Choix invalide. Veuillez réessayer.")
+                        pass
 
 
 def _main() -> int:

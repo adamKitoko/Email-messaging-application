@@ -38,17 +38,29 @@ class Server:
         # self._server_socket
         try:
             self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        except OSError:
+            print("Erreur lors de la création du socket_serveur")
+            sys.exit(-1)
+        try:
             self._server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        except OSError:
+            print("Erreur lors de la création du socket_serveur")
+            sys.exit(-1)
+        try:
             self._server_socket.bind(("127.0.0.1", gloutils.APP_PORT))
-            self._server_socket.listen()
+        except OSError:
+            print("Erreur lors de la création du socket_serveur")
+            sys.exit(-1)
+        try:
+            self._server_socket.listen()    
         except OSError:
             print("Erreur lors de la création du socket_serveur")
             sys.exit(-1)
         # self._client_socs
-        self._client_socs: list = []
+        self._client_socs: list[socket.socket] = []
 
         # self._logged_users
-        self._logged_users: dict
+        self._logged_users: dict = {}
         # ...
         try:
             pathlib.Path(gloutils.SERVER_DATA_DIR).mkdir()
@@ -67,7 +79,7 @@ class Server:
 
     def _accept_client(self) -> None:
         """Accepte un nouveau client."""
-        client_socket, _ = self._serveur_socket.accept()
+        client_socket, socket_addr = self._server_socket.accept()
         self._client_socs.append(client_socket)
 
     def _remove_client(self, client_soc: socket.socket) -> None:
@@ -199,7 +211,7 @@ class Server:
                 countStats += 1
 
         #Taille du dossier
-        sizeStats = cheminUser.stat().st_size
+        sizeStats = int(cheminUser.stat().st_size)
 
         #Création du message d'envoi des statistiques au client.
         reponseStats = gloutils.GloMessage(
@@ -230,7 +242,12 @@ class Server:
         waiters = []
         while True:
             # Select readable sockets
-            result = select.select([self._server_socket]+ self._client_socs, [], [])
+            # try:
+            #     result = select.select([self._server_socket] + self._client_socs, [], [])
+            # except TypeError:
+            #     print("Erreur lors de la selection.")
+            #     sys.exit(-1)
+            result = select.select([self._server_socket] + self._client_socs, [], [])
             waiters: list[socket.socket] = result[0]
             for waiter in waiters:
                 # Handle sockets
@@ -241,7 +258,12 @@ class Server:
                         message = json.loads(glosocket.recv_mesg(waiter))
                     except json.JSONDecodeError as e:
                         self._remove_client(waiter)
-                        print("Erreur lors de la connection du socket: " + waiter.getpeername())
+                        print("Erreur lors de la connection du socket: " + str(waiter.getpeername()))
+                        # print("Erreur lors de l'extraction des infos du messages.")
+                        continue
+                    except glosocket.GLOSocketError:
+                        self._remove_client(waiter)
+                        print("Erreur lors de la connection du socket: " + str(waiter.getpeername()))
                         continue
                     # if headers et payload present.
                     #
@@ -250,21 +272,28 @@ class Server:
                             case {"header": gloutils.Headers.BYE}:
                                 self._remove_client(waiter)
                             case {"header": gloutils.Headers.AUTH_REGISTER}:
-                                if (message['payload'] == gloutils.AuthPayload):
-                                    self._create_account(waiter, message['payload'])
+                                if ("username" in message['payload'] and "password" in message['payload']):
+                                    regReponse = self._create_account(waiter, message['payload'])
+                                    glosocket.send_mesg(waiter, json.dumps(regReponse))
+                                    continue
                                 else:
                                     print("Erreur le message ne contient pas et/ou pas le bon gloutils.payload")
                                     self._remove_client(waiter)
-                                continue
+                                    continue
                             case {"header": gloutils.Headers.AUTH_LOGIN}:
                                 self._login(waiter, message['payload'])
                             case {"header": gloutils.Headers.AUTH_LOGOUT}:
                                 self._logout(waiter)
                             case {"header": gloutils.Headers.STATS_REQUEST}:
                                 try:
-                                    glosocket.send_mesg(waiter, self._get_stats(waiter))
+                                    demandeStats = self._get_stats(waiter)
+                                except OSError:
+                                    print("Erreur la demande de statistique.")
+                                    pass
+                                try:
+                                    glosocket.send_mesg(waiter, json.dumps(demandeStats))
                                 except glosocket.GLOSocketError:
-                                    print("Erreur lors de l'envoi d'un message.")
+                                    print("Erreur lors de l'envoi d'une demande de statistiques.")
                                     self._remove_client(waiter)
                                     continue
                     else:
