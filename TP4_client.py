@@ -29,7 +29,7 @@ class Client:
         # Préparation du socket
         try:
             self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self._socket.connect(destination)
+            self._socket.connect((destination, gloutils.APP_PORT))
         except glosocket.GLOSocketError:
             sys.exit(-1)
         
@@ -48,7 +48,7 @@ class Client:
         motDePasse = getpass.getpass("Entrez un mot de passe:")
         messageAuth = gloutils.GloMessage(header=gloutils.Headers.AUTH_REGISTER,
                                           payload= gloutils.AuthPayload(username=userNom, password=motDePasse))
-        glosocket.send_mesg(self._socket, json.dump(messageAuth))
+        glosocket.send_mesg(self._socket, json.dumps(messageAuth))
 
         # Recevoir la réponse du serveur
         response = glosocket.recv_mesg(self._socket)
@@ -121,6 +121,44 @@ class Client:
 
         Transmet ces informations avec l'entête `EMAIL_SENDING`.
         """
+        #Récupération du contenu du courriel.
+        destEmail = input("Entrez l'adresse du destinataire:")
+        sujEmail = input("Entrez le sujet:")
+        # Boucle d'entrée du contenu du email.
+        print("Entrez le contenu du courriel, terminez la saisie avec un /'./' seul sur une ligne:")
+        messageEmail = ""
+        saisieTerm = False
+        while (not saisieTerm):
+            textSaisi = input()
+            if (textSaisi == '.'):
+                saisieTerm = True
+            else:
+                messageEmail += textSaisi
+
+        # Préparation du courriel.
+        emailContenu = gloutils.EMAIL_DISPLAY.format(
+            source=self._username + '@' + gloutils.SERVER_DOMAIN,
+            destination=destEmail,
+            subject=sujEmail,
+            date=gloutils.get_current_utc_time,
+            content=messageEmail
+        )
+        #Envoi de courriel
+        emailSent = gloutils.GloMessage(
+            header=gloutils.Headers.EMAIL_SENDING,
+            payload=emailContenu
+        )
+        glosocket.send_mesg(self._socket, json.dumps(emailContenu))
+
+        # Confirmation de l'envoi.
+        reponseServeur = json.loads(glosocket.recv_mesg(self._socket))
+        match reponseServeur:
+            case {"header": gloutils.Headers.OK}:
+                print("Courriel envoyé avec succès")
+            case {"header": gloutils.Headers.ERROR}:
+                print(reponseServeur['payload']['error_message'])
+            case other:
+                print("Erreur lors de la confirmation de l'envoi.")
 
     def _check_stats(self) -> None:
         """
@@ -128,6 +166,25 @@ class Client:
 
         Affiche les statistiques à l'aide du gabarit `STATS_DISPLAY`.
         """
+        #Envoi de la demande de statistique.
+        demandeStats = gloutils.GloMessage(
+            header=gloutils.Headers.STATS_REQUEST
+        )
+        glosocket.send_mesg(self._socket, json.dumps(demandeStats))
+        
+        #Réception des statistiques et affichage.
+        stats = json.loads(glosocket.recv_mesg(self._socket))
+        match stats:
+            case {"header": gloutils.Headers.OK}:
+                if stats['payload'] == gloutils.StatsPayload:
+                    affichageStats = gloutils.STATS_DISPLAY.format(
+                        count=stats['payload']['count'],
+                        size=stats['payload']['size'])
+                    print(affichageStats)
+                else:
+                    print("Erreur lors l'accès aux statistiques.")
+            case other:
+                print("Erreur lors l'accès aux statistiques.")
 
     def _logout(self) -> None:
         """
