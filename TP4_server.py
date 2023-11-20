@@ -152,7 +152,8 @@ class Server:
             # Vérifier le mdp
             hasherPass = hashlib.sha3_512()
             hasherPass.update(payload['password'].encode('utf-8'))
-            if (hasherPass == (chemin/gloutils.PASSWORD_FILENAME).read_text()):
+            print("hasherPass =" + hasherPass)
+            if (hasherPass == (chemin/payload['username']/gloutils.PASSWORD_FILENAME).read_text()):
                 self._logged_users[client_soc] = payload['username']
                 reponse = gloutils.GloMessage(header=gloutils.Headers.OK)
             else:
@@ -160,7 +161,6 @@ class Server:
                 errMessage = "Le mot de pass est invalide"
                 errPayload = gloutils.ErrorPayload(error_message=errMessage)
                 reponse = gloutils.GloMessage(header=gloutils.Headers.ERROR, payload=errPayload)
-                return reponse
         else:
             # Mot de passe invalide, envoi d'un message d'erreur.
             errMessage = "Le nom d'utilisateur est invalide"
@@ -258,12 +258,12 @@ class Server:
                         message = json.loads(glosocket.recv_mesg(waiter))
                     except json.JSONDecodeError as e:
                         self._remove_client(waiter)
-                        print("Erreur lors de la connection du socket: " + str(waiter.getpeername()))
+                        print("Erreur lors de l'authentification du socket")
                         # print("Erreur lors de l'extraction des infos du messages.")
                         continue
                     except glosocket.GLOSocketError:
                         self._remove_client(waiter)
-                        print("Erreur lors de la connection du socket: " + str(waiter.getpeername()))
+                        print("Erreur lors de l'authentification du socket")
                         continue
                     # if headers et payload present.
                     #
@@ -281,7 +281,12 @@ class Server:
                                     self._remove_client(waiter)
                                     continue
                             case {"header": gloutils.Headers.AUTH_LOGIN}:
-                                self._login(waiter, message['payload'])
+                                authLogReponse = self._login(waiter, message['payload'])
+                                try:
+                                    glosocket.send_mesg(waiter, json.dumps(authLogReponse))
+                                except glosocket.GLOSocketError:
+                                    print("Erreur lors de l'envoi de la confirmation de connextion par le serveur.")
+                                continue
                             case {"header": gloutils.Headers.AUTH_LOGOUT}:
                                 self._logout(waiter)
                             case {"header": gloutils.Headers.STATS_REQUEST}:

@@ -73,14 +73,16 @@ class Client:
         motDePasse = getpass.getpass("Entrez un mot de passe:")
 
         # Envoyer l'entête AUTH_LOGIN au serveur avec les informations de connexion
-        self._socket.sendall(glosocket.encode_message(glosocket.AUTH_LOGIN))
-        self._socket.sendall(glosocket.encode_message(nomDUtilisateur))
-        self._socket.sendall(glosocket.encode_message(motDePasse))
-
+        authLogMessage = gloutils.GloMessage(
+            header=gloutils.Headers.AUTH_LOGIN,
+            payload=gloutils.AuthPayload(username=nomDUtilisateur,
+                                         password=motDePasse)
+        )
+        glosocket.send_mesg(self._socket, json.dumps(authLogMessage))
 
         # Recevoir la réponse du serveur
-        reponse = glosocket.recv_mesg(self._socket)
-        match json.loads(reponse):
+        reponse = json.loads(glosocket.recv_mesg(self._socket))
+        match reponse:
             case {"header": gloutils.Headers.OK}:
                 self._username = nomDUtilisateur
             case {"header": gloutils.Headers.ERROR}:
@@ -96,7 +98,6 @@ class Client:
             header=gloutils.Headers.BYE,
             payload=None
         )))
-
         # Fermer le socket du client
         self._socket.close()
 
@@ -196,7 +197,9 @@ class Client:
 
         Met à jour l'attribut `_username`.
         """
-        glosocket.send_mesg(gloutils.GloMessage(header=gloutils.Headers.AUTH_LOGOUT))
+        logOutMessage = gloutils.GloMessage(
+            header=gloutils.Headers.AUTH_LOGOUT)
+        glosocket.send_mesg(self._socket, json.dumps(logOutMessage))
         self._socket.close()
         self._username = None
 
