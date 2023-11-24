@@ -141,8 +141,8 @@ class Client:
                 messageEmail += textSaisi
 
         # Préparation du courriel.
-        emailContenu = gloutils.EMAIL_DISPLAY.format(
-            source=self._username + '@' + gloutils.SERVER_DOMAIN,
+        emailContenu = gloutils.EmailContentPayload(
+            sender=self._username + '@' + gloutils.SERVER_DOMAIN,
             destination=destEmail,
             subject=sujEmail,
             date=gloutils.get_current_utc_time,

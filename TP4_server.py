@@ -110,7 +110,7 @@ class Server:
             and (re.search(r"^(?=.*[A-Z])(?=.*\d).{10,}$", payload['password']) is not None)):
 
             # Création du dossier d'utilisateur
-            userDossier = pathlib.Path(gloutils.SERVER_DATA_DIR)/payload['username']
+            userDossier = (pathlib.Path(gloutils.SERVER_DATA_DIR))/payload['username']
             try:
                 userDossier.mkdir()
             except FileExistsError:
@@ -196,7 +196,7 @@ class Server:
         Récupère le nombre de courriels et la taille du dossier et des fichiers
         de l'utilisateur associé au socket.
         """
-        cheminUser = pathlib.Path(gloutils.SERVER_DATA_DIR)/self._logged_users[client_soc]
+        cheminUser = (pathlib.Path(gloutils.SERVER_DATA_DIR))/self._logged_users[client_soc]
 
         #Nombre de courriel.
         countStats = 0
@@ -231,7 +231,38 @@ class Server:
 
         Retourne un messange indiquant le succès ou l'échec de l'opération.
         """
-        return gloutils.GloMessage()
+        emailEnvoye = False
+        estInterne = False
+        if re.search(r"(@[a-zA-Z0-9]+\.[a-zA-Z]+)$", payload['destination']) is not None:
+            if re.search(r"(@"+gloutils.SERVER_DOMAIN+")$", payload['destination']) is not None:
+                estInterne = True
+                # Préparation du courriel.
+                
+                emailContenu = gloutils.EMAIL_DISPLAY.format(payload)
+                cheminUtilisateur = (pathlib.Path(gloutils.SERVER_DATA_DIR))/(re.split(r"(@[a-zA-Z0-9]+\.[a-zA-Z]+)$", payload["destination"])[0])
+                try:
+                    cheminUtilisateur
+                #####
+                print(emailContenu)
+                ######
+            else:
+                estInterne = False
+        else:
+            emailEnvoye = False
+        #Envoi de la confirmation de courriel
+            if (emailEnvoye):
+
+                emailConfirmation = gloutils.GloMessage(
+                    header=gloutils.Headers.OK
+                )
+            else:
+                emailConfirmation = gloutils.GloMessage(
+                    header=gloutils.Headers.ERROR,
+                    payload=gloutils.ErrorPayload(error_message="""Une erreur est survenue lors de l'envoi du message!
+                                                  L'addresse de destination est invalide""")
+                )
+
+        return emailConfirmation
 
     def run(self):
         """Point d'entrée du serveur."""
