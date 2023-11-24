@@ -115,20 +115,23 @@ class Client:
         retourner au menu principal.
         """
         # Demander la liste des courriels au serveur
-        demandeCourriels = gloutils.GloMessage(
+        demandeEmailList = gloutils.GloMessage(
             header=gloutils.Headers.INBOX_READING_REQUEST
         )
-        glosocket.send_mesg(self._socket, json.dumps(demandeCourriels))
-
+        try:
+            glosocket.send_mesg(self._socket, json.dumps(demandeEmailList))
+        except glosocket.GLOSocketError:
+            #gère le problème deconnexion
+            pass
         # Recevoir la réponse du serveur
-        reponseCourriels = json.loads(glosocket.recv_mesg(self._socket))
-        match reponseCourriels:
+        reponseEmailList = json.loads(glosocket.recv_mesg(self._socket))
+        match reponseEmailList:
             case {"header": gloutils.Headers.OK}:
-                if 'payload' in reponseCourriels and 'email_list' in reponseCourriels['payload']:
-                    courrielList: list = reponseCourriels['payload']['email_list']
-                    if courrielList:
+                if 'payload' in reponseEmailList and 'email_list' in reponseEmailList['payload']:
+                    emailList: list = reponseEmailList['payload']['email_list']
+                    if emailList:
                         print("Liste des courriels:")
-                        for courriel in courrielList:
+                        for courriel in emailList:
                             # print(f"{i}. {courriel['subject']} - De: {courriel['source']} - Date: {courriel['date']}")
                             print(courriel + '\n')
 
@@ -136,7 +139,7 @@ class Client:
                         choixCourriel = input("Entrez le numéro du courriel à lire (0 pour revenir au menu principal): ")
                         try:
                             choixCourriel = int(choixCourriel)
-                            if 0 <= choixCourriel <= len(courrielList):
+                            if 0 <= choixCourriel <= len(emailList):
                                 if choixCourriel == 0:
                                     return  # Revenir au menu principal
                                 else:
@@ -144,7 +147,7 @@ class Client:
                                     #
                                     #
                                     #
-                                    # courrielChoisi = courrielList[choixCourriel - 1]
+                                    # courrielChoisi = emailList[choixCourriel - 1]
                                     envoiChoix = gloutils.GloMessage(
                                         header=gloutils.Headers.INBOX_READING_CHOICE,
                                         payload=gloutils.EmailChoicePayload(choice=choixCourriel)
@@ -253,7 +256,6 @@ class Client:
         logOutMessage = gloutils.GloMessage(
             header=gloutils.Headers.AUTH_LOGOUT)
         glosocket.send_mesg(self._socket, json.dumps(logOutMessage))
-        self._socket.close()
         self._username = None
 
     def run(self) -> None:
@@ -289,8 +291,8 @@ class Client:
                     case "3":
                         self._check_stats()
                     case "4":
-                        should_quit = True
-                        self._quit
+                        self._logout()
+                        continue
                     case _:
                         print("Choix invalide. Veuillez réessayer.")
                         pass

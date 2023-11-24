@@ -200,14 +200,15 @@ class Server:
 
         #Nombre de courriel.
         countStats = 0
+        sizeStats = 0
         for fichier in cheminUser.iterdir():
             if fichier == cheminUser/gloutils.PASSWORD_FILENAME:
                 pass
             else:
                 countStats += 1
+                sizeStats += fichier.stat().st_size
 
         #Taille du dossier
-        sizeStats = int(cheminUser.stat().st_size)
 
         #Création du message d'envoi des statistiques au client.
         reponseStats = gloutils.GloMessage(
@@ -296,6 +297,7 @@ class Server:
                         match message:
                             case {"header": gloutils.Headers.BYE}:
                                 self._remove_client(waiter)
+                            #AUTH_REGISTER
                             case {"header": gloutils.Headers.AUTH_REGISTER}:
                                 if ("username" in message['payload'] and "password" in message['payload']):
                                     regReponse = self._create_account(waiter, message['payload'])
@@ -305,6 +307,7 @@ class Server:
                                     print("Erreur le message ne contient pas et/ou pas le bon gloutils.payload")
                                     self._remove_client(waiter)
                                     continue
+                            #AUTH_LOGIN
                             case {"header": gloutils.Headers.AUTH_LOGIN}:
                                 authLogReponse = self._login(waiter, message['payload'])
                                 try:
@@ -312,9 +315,11 @@ class Server:
                                 except glosocket.GLOSocketError:
                                     print("Erreur lors de l'envoi de la confirmation de connextion par le serveur.")
                                 continue
+                            #AUTH_LOGOUT
                             case {"header": gloutils.Headers.AUTH_LOGOUT}:
                                 self._logout(waiter)
-                            # RECEPTION de demande de statistique.
+                                continue
+                            #STATS_REQUEST
                             case {"header": gloutils.Headers.STATS_REQUEST}:
                                 try:
                                     demandeStats = self._get_stats(waiter)
@@ -327,6 +332,7 @@ class Server:
                                     print("Erreur lors de l'envoi d'une demande de statistiques.")
                                     self._remove_client(waiter)
                                     continue
+                            #EMAIL_SENDING
                             case {"header": gloutils.Headers.EMAIL_SENDING}:
                                 try:
                                     glosocket.send_mesg(waiter, json.dumps(self._send_email(message["payload"])))
