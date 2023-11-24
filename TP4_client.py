@@ -114,6 +114,50 @@ class Client:
         S'il n'y a pas de courriel à lire, l'utilisateur est averti avant de
         retourner au menu principal.
         """
+        # Demander la liste des courriels au serveur
+        demandeCourriels = gloutils.GloMessage(
+            header=gloutils.Headers.INBOX_READING_REQUEST
+        )
+        glosocket.send_mesg(self._socket, json.dumps(demandeCourriels))
+
+        # Recevoir la réponse du serveur
+        reponseCourriels = json.loads(glosocket.recv_mesg(self._socket))
+        match reponseCourriels:
+            case {"header": gloutils.Headers.OK}:
+                if 'payload' in reponseCourriels and 'emails' in reponseCourriels['payload']:
+                    courriels = reponseCourriels['payload']['emails']
+                    if courriels:
+                        print("Liste des courriels:")
+                        for i, courriel in enumerate(courriels, start=1):
+                            print(f"{i}. {courriel['subject']} - De: {courriel['source']} - Date: {courriel['date']}")
+
+                        # Demander le choix de l'utilisateur
+                        choixCourriel = input("Entrez le numéro du courriel à lire (0 pour revenir au menu principal): ")
+                        try:
+                            choixCourriel = int(choixCourriel)
+                            if 0 <= choixCourriel <= len(courriels):
+                                if choixCourriel == 0:
+                                    return  # Revenir au menu principal
+                                else:
+                                    # Afficher le contenu du courriel choisi
+                                    courrielChoisi = courriels[choixCourriel - 1]
+                                    print("\nContenu du courriel:")
+                                    print(f"Sujet: {courrielChoisi['subject']}")
+                                    print(f"De: {courrielChoisi['source']}")
+                                    print(f"Date: {courrielChoisi['date']}")
+                                    print(f"Corps:\n{courrielChoisi['content']}")
+                            else:
+                                print("Choix invalide.")
+                        except ValueError:
+                            print("Veuillez entrer un numéro valide.")
+                    else:
+                        print("Vous n'avez pas de courriels.")
+                else:
+                    print("Erreur lors de la récupération des courriels.")
+            case {"header": gloutils.Headers.ERROR}:
+                print(reponseCourriels['payload']['error_message'])
+            case _:
+                print("Erreur inconnue lors de la récupération des courriels.")
 
     def _send_email(self) -> None:
         """
