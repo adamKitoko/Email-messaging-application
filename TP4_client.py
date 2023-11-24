@@ -51,8 +51,8 @@ class Client:
         glosocket.send_mesg(self._socket, json.dumps(messageAuth))
 
         # Recevoir la réponse du serveur
-        reponse = glosocket.recv_mesg(self._socket)
-        match json.loads(reponse):
+        reponse = json.loads(glosocket.recv_mesg(self._socket))
+        match reponse:
             case {"header": gloutils.Headers.OK}:
                 self._username = userNom
             case {"header": gloutils.Headers.ERROR}:
@@ -162,7 +162,7 @@ class Client:
                 print("Courriel envoyé avec succès")
             case {"header": gloutils.Headers.ERROR}:
                 print(reponseServeur['payload']['error_message'])
-            case other:
+            case _:
                 print("Erreur lors de la confirmation de l'envoi.")
 
     def _check_stats(self) -> None:
@@ -178,8 +178,8 @@ class Client:
         glosocket.send_mesg(self._socket, json.dumps(demandeStats))
         
         #Réception des statistiques et affichage.
-        stats = glosocket.recv_mesg(self._socket)
-        match json.loads(stats):
+        stats =json.loads(glosocket.recv_mesg(self._socket))
+        match stats:
             case {"header": gloutils.Headers.OK}:
                 if 'payload' in stats:
                     affichageStats = gloutils.STATS_DISPLAY.format(
@@ -188,7 +188,7 @@ class Client:
                     print(affichageStats)
                 else:
                     print("Erreur lors l'accès aux statistiques.")
-            case other:
+            case _:
                 print("Erreur lors l'accès aux statistiques.")
 
     def _logout(self) -> None:

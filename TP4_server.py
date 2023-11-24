@@ -134,9 +134,8 @@ class Server:
             
         else:
             # Envoyer un message ERROR
-            reponsePayLoad = gloutils.ErrorPayload(error_message=errMessage)
             reponse = gloutils.GloMessage(header=gloutils.Headers.ERROR,
-                                      payload=reponsePayLoad)
+                                      payload=gloutils.ErrorPayload(error_message=errMessage))
         return reponse
 
     def _login(self, client_soc: socket.socket, payload: gloutils.AuthPayload
@@ -152,20 +151,17 @@ class Server:
             # Vérifier le mdp
             hasherPass = hashlib.sha3_512()
             hasherPass.update(payload['password'].encode('utf-8'))
-            print("hasherPass =" + hasherPass)
-            if (hasherPass == (chemin/payload['username']/gloutils.PASSWORD_FILENAME).read_text()):
+            if hmac.compare_digest(hasherPass.hexdigest(),(chemin/payload['username']/gloutils.PASSWORD_FILENAME).read_text()):
                 self._logged_users[client_soc] = payload['username']
                 reponse = gloutils.GloMessage(header=gloutils.Headers.OK)
             else:
                 # Mot de passe invalide, envoi d'un message d'erreur.
-                errMessage = "Le mot de pass est invalide"
-                errPayload = gloutils.ErrorPayload(error_message=errMessage)
-                reponse = gloutils.GloMessage(header=gloutils.Headers.ERROR, payload=errPayload)
+                reponse = gloutils.GloMessage(header=gloutils.Headers.ERROR,
+                                               payload=gloutils.ErrorPayload(error_message="Le mot de passe est invalide"))
         else:
-            # Mot de passe invalide, envoi d'un message d'erreur.
-            errMessage = "Le nom d'utilisateur est invalide"
-            errPayload = gloutils.ErrorPayload(error_message=errMessage)
-            reponse = gloutils.GloMessage(header=gloutils.Headers.ERROR, payload=errPayload)
+            # Le nom d'utilisateur est invalide, envoi d'un message d'erreur.
+            reponse = gloutils.GloMessage(header=gloutils.Headers.ERROR,
+                                           payload=gloutils.ErrorPayload(error_message="Le nom d'utilisateur est invalide"))
         return reponse
 
     def _logout(self, client_soc: socket.socket) -> None:
@@ -173,7 +169,7 @@ class Server:
         self._remove_client(client_soc)
         """..."""
         logOutMessage = gloutils.GloMessage(header=gloutils.Headers.AUTH_LOGOUT)
-        glosocket.send_mesg(client_soc, json.dump(logOutMessage))
+        glosocket.send_mesg(client_soc, json.dumps(logOutMessage))
 
     def _get_email_list(self, client_soc: socket.socket
                         ) -> gloutils.GloMessage:
