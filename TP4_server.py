@@ -234,7 +234,6 @@ class Server:
         if re.search(r"(@[a-zA-Z0-9]+\.[a-zA-Z]+)$", payload['destination']) is not None:
             if re.search(r"(@"+gloutils.SERVER_DOMAIN+")$", payload['destination']) is not None:
                 #Destination interne
-                emailContenu = gloutils.EMAIL_DISPLAY.format(payload)
                 cheminUtilisateur = (pathlib.Path(gloutils.SERVER_DATA_DIR))/(re.split(r"(@[a-zA-Z0-9]+\.[a-zA-Z]+)$", payload["destination"])[0])
                 try:
                     (cheminUtilisateur/(payload["date"]+payload["sender"])).write_text(json.dumps(payload))
@@ -315,6 +314,7 @@ class Server:
                                 continue
                             case {"header": gloutils.Headers.AUTH_LOGOUT}:
                                 self._logout(waiter)
+                            # RECEPTION de demande de statistique.
                             case {"header": gloutils.Headers.STATS_REQUEST}:
                                 try:
                                     demandeStats = self._get_stats(waiter)
@@ -327,6 +327,14 @@ class Server:
                                     print("Erreur lors de l'envoi d'une demande de statistiques.")
                                     self._remove_client(waiter)
                                     continue
+                            case {"header": gloutils.Headers.EMAIL_SENDING}:
+                                try:
+                                    glosocket.send_mesg(waiter, json.dumps(self._send_email(message["payload"])))
+                                except glosocket.GLOSocketError:
+                                    pass
+                                except OSError:
+                                    pass
+                                continue
                     else:
                         print("Error le message ne contient pas de gloutils.Headers")
                         self._remove_client(waiter)

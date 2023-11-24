@@ -189,15 +189,14 @@ class Client:
             sender=self._username + '@' + gloutils.SERVER_DOMAIN,
             destination=destEmail,
             subject=sujEmail,
-            date=gloutils.get_current_utc_time,
-            content=messageEmail
-        )
+            date=gloutils.get_current_utc_time(),
+            content=messageEmail)
         #Envoi de courriel
         emailSent = gloutils.GloMessage(
             header=gloutils.Headers.EMAIL_SENDING,
-            payload=emailContenu
-        )
-        glosocket.send_mesg(self._socket, json.dumps(emailContenu))
+            payload=emailContenu)
+        
+        glosocket.send_mesg(self._socket, json.dumps(emailSent))
 
         # Confirmation de l'envoi.
         reponseServeur = json.loads(glosocket.recv_mesg(self._socket))
