@@ -231,36 +231,35 @@ class Server:
 
         Retourne un messange indiquant le succès ou l'échec de l'opération.
         """
-        emailEnvoye = False
-        estInterne = False
         if re.search(r"(@[a-zA-Z0-9]+\.[a-zA-Z]+)$", payload['destination']) is not None:
             if re.search(r"(@"+gloutils.SERVER_DOMAIN+")$", payload['destination']) is not None:
-                estInterne = True
-                # Préparation du courriel.
-                
+                #Destination interne
                 emailContenu = gloutils.EMAIL_DISPLAY.format(payload)
                 cheminUtilisateur = (pathlib.Path(gloutils.SERVER_DATA_DIR))/(re.split(r"(@[a-zA-Z0-9]+\.[a-zA-Z]+)$", payload["destination"])[0])
                 try:
-                    cheminUtilisateur
-                #####
-                print(emailContenu)
-                ######
-            else:
-                estInterne = False
-        else:
-            emailEnvoye = False
-        #Envoi de la confirmation de courriel
-            if (emailEnvoye):
-
+                    (cheminUtilisateur/(payload["date"]+payload["sender"])).write_text(json.dumps(payload))
+                except FileExistsError:
+                    print("erreur, le fichier existe déjà!")
                 emailConfirmation = gloutils.GloMessage(
                     header=gloutils.Headers.OK
                 )
             else:
+                # Destinataire interne inconnu
+                cheminPerdu = (pathlib.Path(gloutils.SERVER_DATA_DIR))/gloutils.SERVER_LOST_DIR
+                try:
+                    (cheminPerdu/(payload["date"]+payload["destination"])).write_text(json.dumps(payload))
+                except FileExistsError:
+                    print("Erreur, le fichier existe déjà!")
                 emailConfirmation = gloutils.GloMessage(
                     header=gloutils.Headers.ERROR,
                     payload=gloutils.ErrorPayload(error_message="""Une erreur est survenue lors de l'envoi du message!
-                                                  L'addresse de destination est invalide""")
-                )
+                                                  L'addresse de destination est invalide"""))
+        else:
+            #Destination externe
+            emailConfirmation = gloutils.GloMessage(
+                header=gloutils.Headers.ERROR,
+                payload=gloutils.ErrorPayload(error_message="""Une erreur est survenue lors de l'envoi du message!
+                                                L'addresse de destination est invalide"""))
 
         return emailConfirmation
 
