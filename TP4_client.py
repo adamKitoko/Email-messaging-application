@@ -124,28 +124,38 @@ class Client:
         reponseCourriels = json.loads(glosocket.recv_mesg(self._socket))
         match reponseCourriels:
             case {"header": gloutils.Headers.OK}:
-                if 'payload' in reponseCourriels and 'emails' in reponseCourriels['payload']:
-                    courriels = reponseCourriels['payload']['emails']
-                    if courriels:
+                if 'payload' in reponseCourriels and 'email_list' in reponseCourriels['payload']:
+                    courrielList: list = reponseCourriels['payload']['email_list']
+                    if courrielList:
                         print("Liste des courriels:")
-                        for i, courriel in enumerate(courriels, start=1):
-                            print(f"{i}. {courriel['subject']} - De: {courriel['source']} - Date: {courriel['date']}")
+                        for courriel in courrielList:
+                            # print(f"{i}. {courriel['subject']} - De: {courriel['source']} - Date: {courriel['date']}")
+                            print(courriel + '\n')
 
                         # Demander le choix de l'utilisateur
                         choixCourriel = input("Entrez le numéro du courriel à lire (0 pour revenir au menu principal): ")
                         try:
                             choixCourriel = int(choixCourriel)
-                            if 0 <= choixCourriel <= len(courriels):
+                            if 0 <= choixCourriel <= len(courrielList):
                                 if choixCourriel == 0:
                                     return  # Revenir au menu principal
                                 else:
                                     # Afficher le contenu du courriel choisi
-                                    courrielChoisi = courriels[choixCourriel - 1]
-                                    print("\nContenu du courriel:")
-                                    print(f"Sujet: {courrielChoisi['subject']}")
-                                    print(f"De: {courrielChoisi['source']}")
-                                    print(f"Date: {courrielChoisi['date']}")
-                                    print(f"Corps:\n{courrielChoisi['content']}")
+                                    #
+                                    #
+                                    #
+                                    # courrielChoisi = courrielList[choixCourriel - 1]
+                                    envoiChoix = gloutils.GloMessage(
+                                        header=gloutils.Headers.INBOX_READING_CHOICE,
+                                        payload=gloutils.EmailChoicePayload(choice=choixCourriel)
+                                    )
+                                    glosocket.send_mesg(self._socket, json.dumps(envoiChoix))
+
+                                    receptionEmail = json.loads(glosocket.recv_mesg(self._socket))
+
+                                    match receptionEmail:
+                                        case{"header": gloutils.Headers.OK}:
+                                            print(gloutils.EMAIL_DISPLAY.format(receptionEmail["payload"]))
                             else:
                                 print("Choix invalide.")
                         except ValueError:
