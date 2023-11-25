@@ -84,10 +84,10 @@ class Server:
 
     def _remove_client(self, client_soc: socket.socket) -> None:
         """Retire le client des structures de données et ferme sa connexion."""
-        if client_soc in self._client_socs:
-            self._client_socs.remove(client_soc)
         if client_soc in self._logged_users:
             self._logged_users.pop(client_soc)
+        if client_soc in self._client_socs:
+            self._client_socs.remove(client_soc)
         client_soc.close()
 
     def _create_account(self, client_soc: socket.socket,
@@ -166,10 +166,7 @@ class Server:
 
     def _logout(self, client_soc: socket.socket) -> None:
         """Déconnecte un utilisateur."""
-        self._remove_client(client_soc)
-        """..."""
-        logOutMessage = gloutils.GloMessage(header=gloutils.Headers.AUTH_LOGOUT)
-        glosocket.send_mesg(client_soc, json.dumps(logOutMessage))
+        self._logged_users.pop(client_soc)
 
     def _get_email_list(self, client_soc: socket.socket
                         ) -> gloutils.GloMessage:
@@ -211,7 +208,7 @@ class Server:
         for email in sorted(cheminUser.iterdir(), key=os.path.getmtime, reverse=True):
             if not email.samefile(cheminUser/gloutils.PASSWORD_FILENAME):
                 emailList.append(email)
-        emailReq = json.loads(emailList[payload["choice"] - 1].read_text())
+        emailReq = json.loads(emailList[int(payload["choice"]) - 1].read_text())
         return gloutils.GloMessage(
             header=gloutils.Headers.OK,
             payload=emailReq
@@ -370,7 +367,7 @@ class Server:
                             case {"header": gloutils.Headers.INBOX_READING_REQUEST}:
                                 glosocket.send_mesg(waiter, json.dumps(self._get_email_list(waiter)))
                             case {"header": gloutils.Headers.INBOX_READING_CHOICE}:
-                                glosocket.send_mesg(waiter, self._get_email(waiter, message['payload']))
+                                glosocket.send_mesg(waiter, json.dumps(self._get_email(waiter, message['payload'])))
 
                     else:
                         print("Error le message ne contient pas de gloutils.Headers")
