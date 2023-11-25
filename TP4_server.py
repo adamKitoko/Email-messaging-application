@@ -52,7 +52,7 @@ class Server:
             print("Erreur lors de la création du socket_serveur")
             sys.exit(-1)
         try:
-            self._server_socket.listen()    
+            self._server_socket.listen()
         except OSError:
             print("Erreur lors de la création du socket_serveur")
             sys.exit(-1)
@@ -180,7 +180,24 @@ class Server:
 
         Une absence de courriel n'est pas une erreur, mais une liste vide.
         """
-        return gloutils.GloMessage()
+        cheminUser = pathlib.Path(gloutils.SERVER_DATA_DIR, self._logged_users[client_soc])
+        emailList: list = []
+        emailCompte = 0
+        for email in sorted(cheminUser.iterdir(), key=os.path.getmtime, reverse=True):
+            if not email.samefile(cheminUser/gloutils.PASSWORD_FILENAME):
+                emailCompte += 1
+                emailJson = (json.loads(email.read_text()))
+                emailList.append(gloutils.SUBJECT_DISPLAY.format(
+                    number=emailCompte,
+                    sender=emailJson['sender'],
+                    subject=emailJson['subject'],
+                    date=emailJson['date']))
+        repEmailList = gloutils.GloMessage(
+            header=gloutils.Headers.OK,
+            payload=gloutils.EmailListPayload(email_list=emailList)
+        )
+
+        return repEmailList
 
     def _get_email(self, client_soc: socket.socket,
                    payload: gloutils.EmailChoicePayload
@@ -189,7 +206,16 @@ class Server:
         Récupère le contenu de l'email dans le dossier de l'utilisateur associé
         au socket.
         """
-        return gloutils.GloMessage()
+        cheminUser = pathlib.Path(gloutils.SERVER_DATA_DIR, self._logged_users[client_soc])
+        emailList: list = []
+        for email in sorted(cheminUser.iterdir(), key=os.path.getmtime, reverse=True):
+            if not email.samefile(cheminUser/gloutils.PASSWORD_FILENAME):
+                emailList.append(email)
+        emailReq = json.loads(emailList[payload["choice"] - 1].read_text())
+        return gloutils.GloMessage(
+            header=gloutils.Headers.OK,
+            payload=emailReq
+        )
 
     def _get_stats(self, client_soc: socket.socket) -> gloutils.GloMessage:
         """
@@ -341,6 +367,11 @@ class Server:
                                 except OSError:
                                     pass
                                 continue
+                            case {"header": gloutils.Headers.INBOX_READING_REQUEST}:
+                                glosocket.send_mesg(waiter, json.dumps(self._get_email_list(waiter)))
+                            case {"header": gloutils.Headers.INBOX_READING_CHOICE}:
+                                glosocket.send_mesg(waiter, self._get_email(waiter, message['payload']))
+
                     else:
                         print("Error le message ne contient pas de gloutils.Headers")
                         self._remove_client(waiter)

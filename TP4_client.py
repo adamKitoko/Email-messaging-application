@@ -11,6 +11,7 @@ import getpass
 import json
 import socket
 import sys
+import re
 
 import glosocket
 import gloutils
@@ -48,10 +49,19 @@ class Client:
         motDePasse = getpass.getpass("Entrez un mot de passe:")
         messageAuth = gloutils.GloMessage(header=gloutils.Headers.AUTH_REGISTER,
                                           payload= gloutils.AuthPayload(username=userNom, password=motDePasse))
-        glosocket.send_mesg(self._socket, json.dumps(messageAuth))
+        try:
+            glosocket.send_mesg(self._socket, json.dumps(messageAuth))
+        except glosocket.GLOSocketError:
+            print("Erreur, la connexion avec le serveur est rompue!")
+            self._quit()
 
         # Recevoir la réponse du serveur
-        reponse = json.loads(glosocket.recv_mesg(self._socket))
+        try:
+            reponse = json.loads(glosocket.recv_mesg(self._socket))
+        except glosocket.GLOSocketError:
+            print("Erreur, la connexion avec le serveur est rompue!")
+            self._quit()
+
         match reponse:
             case {"header": gloutils.Headers.OK}:
                 self._username = userNom
@@ -78,10 +88,19 @@ class Client:
             payload=gloutils.AuthPayload(username=nomDUtilisateur,
                                          password=motDePasse)
         )
-        glosocket.send_mesg(self._socket, json.dumps(authLogMessage))
+        try:
+            glosocket.send_mesg(self._socket, json.dumps(authLogMessage))
+        except glosocket.GLOSocketError:
+            print("Erreur, la connexion avec le serveur est rompue!")
+            self._quit()
 
         # Recevoir la réponse du serveur
-        reponse = json.loads(glosocket.recv_mesg(self._socket))
+        try:
+            reponse = json.loads(glosocket.recv_mesg(self._socket))
+        except glosocket.GLOSocketError:
+            print("Erreur, la connexion avec le serveur est rompue!")
+            self._quit()
+
         match reponse:
             case {"header": gloutils.Headers.OK}:
                 self._username = nomDUtilisateur
@@ -94,10 +113,14 @@ class Client:
         socket du client.
         """
         # Envoyer l'entête BYE au serveur
-        glosocket.send_mesg(self._socket, json.dumps(gloutils.GloMessage(
-            header=gloutils.Headers.BYE,
-            payload=None
-        )))
+        try:
+            glosocket.send_mesg(self._socket, json.dumps(gloutils.GloMessage(
+                header=gloutils.Headers.BYE,
+                payload=None
+            )))
+        except glosocket.GLOSocketError:
+            print("Erreur lors de la deconnexion au serveur!")
+            self._socket.close()
         # Fermer le socket du client
         self._socket.close()
 
@@ -121,56 +144,60 @@ class Client:
         try:
             glosocket.send_mesg(self._socket, json.dumps(demandeEmailList))
         except glosocket.GLOSocketError:
-            #gère le problème deconnexion
-            pass
+            print("Erreur, la connexion avec le serveur est rompue!")
+            self._username = None
+            self._quit()
+
         # Recevoir la réponse du serveur
-        reponseEmailList = json.loads(glosocket.recv_mesg(self._socket))
-        match reponseEmailList:
-            case {"header": gloutils.Headers.OK}:
-                if 'payload' in reponseEmailList and 'email_list' in reponseEmailList['payload']:
-                    emailList: list = reponseEmailList['payload']['email_list']
-                    if emailList:
-                        print("Liste des courriels:")
-                        for courriel in emailList:
-                            # print(f"{i}. {courriel['subject']} - De: {courriel['source']} - Date: {courriel['date']}")
-                            print(courriel + '\n')
+        try:
+            reponseEmailList = json.loads(glosocket.recv_mesg(self._socket))
+        except glosocket.GLOSocketError:
+            print("Erreur, la connexion avec le serveur est rompue!")
+            self._username = None
+            self._quit()
 
-                        # Demander le choix de l'utilisateur
-                        choixCourriel = input("Entrez le numéro du courriel à lire (0 pour revenir au menu principal): ")
-                        try:
-                            choixCourriel = int(choixCourriel)
-                            if 0 <= choixCourriel <= len(emailList):
-                                if choixCourriel == 0:
-                                    return  # Revenir au menu principal
-                                else:
-                                    # Afficher le contenu du courriel choisi
-                                    #
-                                    #
-                                    #
-                                    # courrielChoisi = emailList[choixCourriel - 1]
-                                    envoiChoix = gloutils.GloMessage(
-                                        header=gloutils.Headers.INBOX_READING_CHOICE,
-                                        payload=gloutils.EmailChoicePayload(choice=choixCourriel)
-                                    )
-                                    glosocket.send_mesg(self._socket, json.dumps(envoiChoix))
+        emailList: list = reponseEmailList['payload']['email_list']
+        if len(emailList) < 1:
+            return
+        else:
+            for courriel in emailList:
+                print(courriel)
+            # Demander le choix de l'utilisateur
+            choixCourriel = input("Entrez votre choix [1-" + str(len(emailList)) + "]:")
+            if not (re.search(r"[0-9]+", choixCourriel) is not None) and (not choixCourriel>len(emailList)):
+                print("Erreur, choix invalide!")
+                return
+            else:
+                #Envoi du numéro du courriel choisi
+                envoiChoix = gloutils.GloMessage(
+                    header=gloutils.Headers.INBOX_READING_CHOICE,
+                    payload=gloutils.EmailChoicePayload(choice=choixCourriel)
+                )
+                try:
+                    glosocket.send_mesg(self._socket, json.dumps(envoiChoix))
+                except glosocket.GLOSocketError:
+                    print("Erreur, la connexion avec le serveur est rompue!")
+                    self._username = None
+                    self._quit()
 
-                                    receptionEmail = json.loads(glosocket.recv_mesg(self._socket))
-
-                                    match receptionEmail:
-                                        case{"header": gloutils.Headers.OK}:
-                                            print(gloutils.EMAIL_DISPLAY.format(receptionEmail["payload"]))
-                            else:
-                                print("Choix invalide.")
-                        except ValueError:
-                            print("Veuillez entrer un numéro valide.")
-                    else:
-                        print("Vous n'avez pas de courriels.")
-                else:
-                    print("Erreur lors de la récupération des courriels.")
-            case {"header": gloutils.Headers.ERROR}:
-                print(reponseCourriels['payload']['error_message'])
-            case _:
-                print("Erreur inconnue lors de la récupération des courriels.")
+                #Reception du courriel choisi
+                try:
+                    receptionEmail = json.loads(glosocket.recv_mesg(self._socket))
+                except glosocket.GLOSocketError:
+                    print("Erreur, la connexion avec le serveur est rompue!")
+                    self._username = None
+                    self._quit()
+                except json.JSONDecodeError:
+                    print("Erreur, de communication avec le serveur!\nVeuillez vous reconnecter")
+                    self._username = None
+                    self._logout()
+                
+                print(gloutils.EMAIL_DISPLAY.format(
+                    sender=receptionEmail["payload"]['sender'],
+                    to=receptionEmail["payload"]['destination'],
+                    subject=receptionEmail["payload"]['subject'],
+                    date=receptionEmail["payload"]['date'],
+                    body=receptionEmail["payload"]['content']))
 
     def _send_email(self) -> None:
         """
@@ -209,10 +236,21 @@ class Client:
             header=gloutils.Headers.EMAIL_SENDING,
             payload=emailContenu)
         
-        glosocket.send_mesg(self._socket, json.dumps(emailSent))
+        try:
+            glosocket.send_mesg(self._socket, json.dumps(emailSent))
+        except glosocket.GLOSocketError:
+            print("Erreur, la connexion avec le serveur est rompue!")
+            self._username = None
+            self._quit()
 
         # Confirmation de l'envoi.
-        reponseServeur = json.loads(glosocket.recv_mesg(self._socket))
+        try:
+            reponseServeur = json.loads(glosocket.recv_mesg(self._socket))
+        except glosocket.GLOSocketError:
+            print("Erreur, la connexion avec le serveur est rompue!")
+            self._username = None
+            self._quit()
+        
         match reponseServeur:
             case {"header": gloutils.Headers.OK}:
                 print("Courriel envoyé avec succès")
@@ -231,10 +269,20 @@ class Client:
         demandeStats = gloutils.GloMessage(
             header=gloutils.Headers.STATS_REQUEST
         )
-        glosocket.send_mesg(self._socket, json.dumps(demandeStats))
+        try:
+            glosocket.send_mesg(self._socket, json.dumps(demandeStats))
+        except glosocket.GLOSocketError:
+            print("Erreur, la connexion avec le serveur est rompue!")
+            self._username = None
+            self._quit()
         
         #Réception des statistiques et affichage.
-        stats =json.loads(glosocket.recv_mesg(self._socket))
+        try:
+            stats =json.loads(glosocket.recv_mesg(self._socket))
+        except glosocket.GLOSocketError:
+            print("Erreur, la connexion avec le serveur est rompue!")
+            self._username = None
+            self._quit()
         match stats:
             case {"header": gloutils.Headers.OK}:
                 if 'payload' in stats:
@@ -255,7 +303,13 @@ class Client:
         """
         logOutMessage = gloutils.GloMessage(
             header=gloutils.Headers.AUTH_LOGOUT)
-        glosocket.send_mesg(self._socket, json.dumps(logOutMessage))
+        try:
+            glosocket.send_mesg(self._socket, json.dumps(logOutMessage))
+        except glosocket.GLOSocketError:
+            print("Erreur, la connexion avec le serveur est rompue!")
+            self._username = None
+            self._quit()
+
         self._username = None
 
     def run(self) -> None:
@@ -269,14 +323,27 @@ class Client:
                 choix = input("Entrez votre choix [1-3]:")
                 match choix:
                     case "1":
-                        self._register()
+                        try:
+                            self._register()
+                        except glosocket.GLOSocketError:
+                            print("Erreur, la connexion avec le serveur est rompue!")
+                            self._quit()
+                            should_quit = True
+                            continue
                         continue
                     case "2":
-                        self._login()
+                        try:
+                            self._login()
+                        except glosocket.GLOSocketError:
+                            print("Erreur, la connexion avec le serveur est rompue!")
+                            self._quit()
+                            should_quit = True
+                            continue
                         continue
                     case "3":
-                        should_quit = True
                         self._quit()
+                        should_quit = True
+                        continue
                     case _: 
                         pass
             else:
@@ -285,13 +352,41 @@ class Client:
                 choixMenuEmail = input("Entrez votre choix [1-4]: ")
                 match choixMenuEmail:
                     case "1":
-                        self._read_email()
+                        try:
+                            self._read_email()
+                        except glosocket.GLOSocketError:
+                            print("Erreur, la connexion avec le serveur est rompue!")
+                            self._username = None
+                            self._quit()
+                            should_quit = True
+                            continue
                     case "2":
-                        self._send_email()
+                        try:
+                            self._send_email()
+                        except glosocket.GLOSocketError:
+                            print("Erreur, la connexion avec le serveur est rompue!")
+                            self._username = None
+                            self._quit()
+                            should_quit = True
+                            continue
                     case "3":
-                        self._check_stats()
+                        try:
+                            self._check_stats()
+                        except glosocket.GLOSocketError:
+                            print("Erreur, la connexion avec le serveur est rompue!")
+                            self._username = None
+                            self._quit()
+                            should_quit = True
+                            continue
                     case "4":
-                        self._logout()
+                        try:
+                            self._logout()
+                        except glosocket.GLOSocketError:
+                            print("Erreur, la connexion avec le serveur est rompue!")
+                            self._username = None
+                            self._quit()
+                            should_quit = True
+                            continue
                         continue
                     case _:
                         print("Choix invalide. Veuillez réessayer.")
