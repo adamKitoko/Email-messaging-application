@@ -1,9 +1,9 @@
 """\
 GLO-2000 Travail pratique 4 - Client
 Noms et numéros étudiants:
--
--
--
+- Dominique Saint-Pierre 111 134 516
+- Adam Kitoko 536 868 700
+- Pengdwindé Alex Auguste Ouedraogo 111 250 058
 """
 
 import argparse
@@ -51,15 +51,15 @@ class Client:
                                           payload= gloutils.AuthPayload(username=userNom, password=motDePasse))
         try:
             glosocket.send_mesg(self._socket, json.dumps(messageAuth))
-        except json.JSONDecodeError as e:
-            print("Erreur, la connexion avec le serveur est rompue!:", e)
+        except glosocket.GLOSocketError:
+            print("Erreur, la connexion avec le serveur est rompue!:")
             self._quit()
 
         # Recevoir la réponse du serveur
         try:
             reponse = json.loads(glosocket.recv_mesg(self._socket))
-        except json.JSONDecodeError as e:
-            print("Erreur, la connexion avec le serveur est rompue!:", e)
+        except glosocket.GLOSocketError:
+            print("Erreur, la connexion avec le serveur est rompue!:")
             self._quit()
 
         match reponse:
@@ -90,15 +90,15 @@ class Client:
         )
         try:
             glosocket.send_mesg(self._socket, json.dumps(authLogMessage))
-        except json.JSONDecodeError as e:
-            print("Erreur, la connexion avec le serveur est rompue!:", e)
+        except glosocket.GLOSocketError:
+            print("Erreur, la connexion avec le serveur est rompue!:")
             self._quit()
 
         # Recevoir la réponse du serveur
         try:
             reponse = json.loads(glosocket.recv_mesg(self._socket))
-        except json.JSONDecodeError as e:
-            print("Erreur, la connexion avec le serveur est rompue!:", e)
+        except glosocket.GLOSocketError:
+            print("Erreur, la connexion avec le serveur est rompue!:")
             self._quit()
 
         match reponse:
@@ -118,12 +118,10 @@ class Client:
                 header=gloutils.Headers.BYE,
                 payload=None
             )))
-        except json.JSONDecodeError as e:
+        except glosocket.GLOSocketError:
             print("Erreur, de communication avec le serveur!\n")
             self._socket.close()
-        except glosocket.GLOSocketError as e:
-            print("Erreur lors de la deconnexion au serveur!")
-            self._socket.close()
+
         # Fermer le socket du client
         self._socket.close()
 
@@ -146,15 +144,15 @@ class Client:
         )
         try:
             glosocket.send_mesg(self._socket, json.dumps(demandeEmailList))
-        except json.JSONDecodeError as e:
-            print("Erreur, de communication avec le serveur!\nVeuillez vous reconnecter:", e)
+        except glosocket.GLOSocketError:
+            print("Erreur, de communication avec le serveur!\nVeuillez vous reconnecter:")
             self._logout()
 
         # Recevoir la réponse du serveur
         try:
             reponseEmailList = json.loads(glosocket.recv_mesg(self._socket))
-        except json.JSONDecodeError as e:
-            print("Erreur, de communication avec le serveur!\nVeuillez vous reconnecter:", e)
+        except glosocket.GLOSocketError:
+            print("Erreur, de communication avec le serveur!\nVeuillez vous reconnecter:")
             self._logout()
 
         emailList: list = reponseEmailList['payload']['email_list']
@@ -175,15 +173,15 @@ class Client:
                 )
                 try:
                     glosocket.send_mesg(self._socket, json.dumps(envoiChoix))
-                except json.JSONDecodeError as e:
-                    print("Erreur, de communication avec le serveur!\nVeuillez vous reconnecter:", e)
+                except glosocket.GLOSocketError:
+                    print("Erreur, de communication avec le serveur!\nVeuillez vous reconnecter:")
                     self._logout()
 
                 #Reception du courriel choisi
                 try:
                     receptionEmail = json.loads(glosocket.recv_mesg(self._socket))
-                except json.JSONDecodeError as e:
-                    print("Erreur, de communication avec le serveur!\nVeuillez vous reconnecter:", e)
+                except glosocket.GLOSocketError:
+                    print("Erreur, de communication avec le serveur!\nVeuillez vous reconnecter:")
                     self._logout()
                 
                 print(gloutils.EMAIL_DISPLAY.format(
@@ -208,7 +206,7 @@ class Client:
         destEmail = input("Entrez l'adresse du destinataire:")
         sujEmail = input("Entrez le sujet:")
         # Boucle d'entrée du contenu du email.
-        print("Entrez le contenu du courriel, terminez la saisie avec un /'./' seul sur une ligne:")
+        print("Entrez le contenu du courriel, terminez la saisie avec un '.' seul sur une ligne:")
         messageEmail = ""
         saisieTerm = False
         while (not saisieTerm):
@@ -217,6 +215,7 @@ class Client:
                 saisieTerm = True
             else:
                 messageEmail += textSaisi
+                messageEmail += '\n'
 
         # Préparation du courriel.
         emailContenu = gloutils.EmailContentPayload(
@@ -231,15 +230,15 @@ class Client:
             payload=emailContenu)
         try:
             glosocket.send_mesg(self._socket, json.dumps(emailSent))
-        except json.JSONDecodeError as e:
-            print("Erreur, de communication avec le serveur!\nVeuillez vous reconnecter:", e)
+        except glosocket.GLOSocketError:
+            print("Erreur, de communication avec le serveur!\nVeuillez vous reconnecter:")
             self._logout()
 
         # Confirmation de l'envoi.
         try:
             reponseServeur = json.loads(glosocket.recv_mesg(self._socket))
-        except json.JSONDecodeError as e:
-            print("Erreur, de communication avec le serveur!\nVeuillez vous reconnecter:", e)
+        except glosocket.GLOSocketError:
+            print("Erreur, de communication avec le serveur!\nVeuillez vous reconnecter:")
             self._logout()
         
         match reponseServeur:
@@ -262,15 +261,15 @@ class Client:
         )
         try:
             glosocket.send_mesg(self._socket, json.dumps(demandeStats))
-        except json.JSONDecodeError as e:
-            print("Erreur, de communication avec le serveur!\nVeuillez vous reconnecter:", e)
+        except glosocket.GLOSocketError:
+            print("Erreur, de communication avec le serveur!\nVeuillez vous reconnecter:")
             self._logout()
         
         #Réception des statistiques et affichage.
         try:
             stats =json.loads(glosocket.recv_mesg(self._socket))
-        except json.JSONDecodeError as e:
-            print("Erreur, de communication avec le serveur!\nVeuillez vous reconnecter:", e)
+        except glosocket.GLOSocketError:
+            print("Erreur, de communication avec le serveur!\nVeuillez vous reconnecter:")
             self._logout()
 
         match stats:
@@ -316,7 +315,7 @@ class Client:
                         try:
                             self._register()
                         except glosocket.GLOSocketError as e:
-                            print("Erreur, la connexion avec le serveur est rompue!:", e)
+                            print("Erreur, la connexion avec le serveur est rompue!:")
                             self._quit()
                             should_quit = True
                             continue

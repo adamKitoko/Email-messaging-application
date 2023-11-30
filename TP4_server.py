@@ -1,9 +1,9 @@
 """\
 GLO-2000 Travail pratique 4 - Serveur
 Noms et numéros étudiants:
--
--
--
+- Dominique Saint-Pierre 111 134 516
+- Adam Kitoko 536 868 700
+- Pengdwindé Alex Auguste Ouedraogo 111 250 058
 """
 
 import hashlib
@@ -231,8 +231,6 @@ class Server:
                 countStats += 1
                 sizeStats += fichier.stat().st_size
 
-        #Taille du dossier
-
         #Création du message d'envoi des statistiques au client.
         reponseStats = gloutils.GloMessage(
             header=gloutils.Headers.OK,
@@ -257,26 +255,26 @@ class Server:
         """
         if re.search(r"(@[a-zA-Z0-9]+\.[a-zA-Z]+)$", payload['destination']) is not None:
             if re.search(r"(@"+gloutils.SERVER_DOMAIN+")$", payload['destination']) is not None:
-                #Destination interne
-                cheminUtilisateur = (pathlib.Path(gloutils.SERVER_DATA_DIR))/(re.split(r"(@[a-zA-Z0-9]+\.[a-zA-Z]+)$", payload["destination"])[0])
-                try:
-                    (cheminUtilisateur/(payload["date"]+payload["sender"])).write_text(json.dumps(payload))
-                except FileExistsError:
-                    print("erreur, le fichier existe déjà!")
-                emailConfirmation = gloutils.GloMessage(
-                    header=gloutils.Headers.OK
-                )
-            else:
-                # Destinataire interne inconnu
-                cheminPerdu = (pathlib.Path(gloutils.SERVER_DATA_DIR))/gloutils.SERVER_LOST_DIR
-                try:
-                    (cheminPerdu/(payload["date"]+payload["destination"])).write_text(json.dumps(payload))
-                except FileExistsError:
-                    print("Erreur, le fichier existe déjà!")
-                emailConfirmation = gloutils.GloMessage(
-                    header=gloutils.Headers.ERROR,
-                    payload=gloutils.ErrorPayload(error_message="""Une erreur est survenue lors de l'envoi du message!
-                                                  L'addresse de destination est invalide"""))
+                if ((pathlib.Path(gloutils.SERVER_DATA_DIR))/(re.split(r"(@[a-zA-Z0-9]+\.[a-zA-Z]+)$", payload["destination"])[0])).exists():
+                    #Destination interne
+                    cheminUtilisateur = (pathlib.Path(gloutils.SERVER_DATA_DIR))/(re.split(r"(@[a-zA-Z0-9]+\.[a-zA-Z]+)$", payload["destination"])[0])
+                    try:
+                        (cheminUtilisateur/(payload["date"]+payload["sender"])).write_text(json.dumps(payload))
+                    except FileExistsError:
+                        print("erreur, le fichier existe déjà!")
+                    emailConfirmation = gloutils.GloMessage(
+                        header=gloutils.Headers.OK
+                    )
+                else:
+                    # Destinataire interne inconnu
+                    cheminPerdu = (pathlib.Path(gloutils.SERVER_DATA_DIR))/gloutils.SERVER_LOST_DIR
+                    try:
+                        (cheminPerdu/(payload["date"]+payload["destination"])).write_text(json.dumps(payload))
+                    except FileExistsError:
+                        print("Erreur, le fichier existe déjà!")
+                    emailConfirmation = gloutils.GloMessage(
+                        header=gloutils.Headers.ERROR,
+                        payload=gloutils.ErrorPayload(error_message="""Une erreur est survenue lors de l'envoi du message!\nL'addresse de destination est invalide"""))
         else:
             #Destination externe
             emailConfirmation = gloutils.GloMessage(
@@ -305,7 +303,7 @@ class Server:
                 else:
                     try:
                         message = json.loads(glosocket.recv_mesg(waiter))
-                    except json.JSONDecodeError as e:
+                    except json.JSONDecodeError:
                         self._remove_client(waiter)
                         print("Erreur lors de l'authentification du socket")
                         # print("Erreur lors de l'extraction des infos du messages.")
@@ -357,13 +355,7 @@ class Server:
                                     continue
                             #EMAIL_SENDING
                             case {"header": gloutils.Headers.EMAIL_SENDING}:
-                                try:
-                                    glosocket.send_mesg(waiter, json.dumps(self._send_email(message["payload"])))
-                                except glosocket.GLOSocketError:
-                                    pass
-                                except OSError:
-                                    pass
-                                continue
+                                glosocket.send_mesg(waiter, json.dumps(self._send_email(message["payload"])))
                             case {"header": gloutils.Headers.INBOX_READING_REQUEST}:
                                 glosocket.send_mesg(waiter, json.dumps(self._get_email_list(waiter)))
                             case {"header": gloutils.Headers.INBOX_READING_CHOICE}:
